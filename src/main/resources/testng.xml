@@ -1,0 +1,21 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<suite name="Suite1" verbose="1">
+    <test name="Main">
+        <classes>
+            <class name="org.tests.MainPageTest"/>
+        </classes>
+    </test>
+
+    <test name="Login">
+        <classes>
+            <class name="org.tests.LoginPageTest"/>
+        </classes>
+    </test>
+
+    <test name="Drop">
+        <classes>
+            <class name="org.tests.DroppableTest"/>
+        </classes>
+    </test>
+</suite>
