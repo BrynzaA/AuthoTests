@@ -1,15 +1,10 @@
 package org.tests.pages;
 
 import java.time.Duration;
-import java.util.List;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.FindBy;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.tests.utils.ConfigReader;
 
 public class MainPage extends BasePage {
@@ -21,14 +16,15 @@ public class MainPage extends BasePage {
     @FindBy(className = "ast-above-header-bar")
     private WebElement header;
 
-    @FindBy(xpath = "/html/body/div[1]/div[2]")
+    @FindBy(css = "#page > div.elementor.elementor-25361.elementor-location-footer.nitro-offscreen > div")
     private WebElement footer;
 
-    @FindBy(className = "elementor-swiper")
+    @FindBy(css = "#post-17 > div > div > section.elementor-section.elementor-top-section.elementor-element.elementor-element-14f241ad.elementor-section-boxed.elementor-section-height-default.nitro-offscreen")
     private WebElement slider;
 
-    @FindBy(xpath = "//div[contains(@class, 'elementor-swiper')]//img")
-    private List<WebElement> sliderImages;
+    @FindBy(xpath = "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]")
+    private WebElement sliderImg;
+
 
     public void open() {
         driver.get(ConfigReader.getMainUrl());
@@ -45,31 +41,22 @@ public class MainPage extends BasePage {
 
     public boolean isSliderWorks() {
         try {
-            waitForElementVisible(slider, 5);
+            waitForSlider();
 
-            WebElement currentImage = waitForElement(By.xpath(
-                    "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]"
-            ), 5);
+            String initialSrc = getImg(sliderImg);
 
-            String initialSrc = currentImage.getAttribute("src");
-
-            Thread.sleep(1000);
 
             Actions action = new Actions(driver);
             action.clickAndHold(slider)
                     .pause(Duration.ofMillis(500))
-                    .moveByOffset(-300, 0)
+                    .moveByOffset(-500, 0)
                     .pause(Duration.ofMillis(500))
                     .release()
                     .perform();
 
-            Thread.sleep(2000);
+            action.pause(Duration.ofMillis(1000)).perform();
 
-            WebElement newImage = waitForElement(By.xpath(
-                    "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]"
-            ), 5);
-
-            String newSrc = newImage.getAttribute("src");
+            String newSrc = getImg(sliderImg);
 
             return !initialSrc.equals(newSrc);
 
@@ -81,40 +68,27 @@ public class MainPage extends BasePage {
 
     public boolean isSliderWorksBackwards() {
         try {
-            waitForElementVisible(slider, 5);
+            waitForSlider();
 
-            WebElement initialImage = waitForElement(By.xpath(
-                    "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]"
-            ), 5);
+            String initialSrc = getImg(sliderImg);
 
-            String initialSrc = initialImage.getAttribute("src");
-
-            Thread.sleep(1000);
 
             Actions action = new Actions(driver);
-            action.clickAndHold(slider)
-                    .pause(Duration.ofMillis(500))
-                    .moveByOffset(-300, 0)
+            action.dragAndDropBy(slider, 500, 0)
                     .pause(Duration.ofMillis(500))
                     .release()
+                    .pause(Duration.ofMillis(1000))
                     .perform();
 
-            Thread.sleep(2000);
 
-            action.clickAndHold(slider)
-                    .pause(Duration.ofMillis(500))
-                    .moveByOffset(300, 0)
+            action.dragAndDropBy(slider, -500, 0)
                     .pause(Duration.ofMillis(500))
                     .release()
+                    .pause(Duration.ofMillis(1000))
                     .perform();
 
-            Thread.sleep(2000);
 
-            WebElement returnedImage = waitForElement(By.xpath(
-                    "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]"
-            ), 5);
-
-            String returnedSrc = returnedImage.getAttribute("src");
+            String returnedSrc = getImg(sliderImg);
 
             return initialSrc.equals(returnedSrc);
 
@@ -125,7 +99,7 @@ public class MainPage extends BasePage {
     }
 
     public boolean isHeaderScrolledToFooterVisible() {
-        waitForElementVisible(footer, 5);
+        waitForElementVisible(footer, 1);
 
         Actions action = new Actions(driver);
         action.scrollToElement(footer)
@@ -136,12 +110,12 @@ public class MainPage extends BasePage {
     }
 
     public boolean isHeaderScrolledToFixCoordinateVisible() {
-        waitForElementVisible(header, 5);
+        waitForElementVisible(header, 1);
 
         Actions action = new Actions(driver);
-        action.scrollByAmount(0, 300)
+        action.scrollByAmount(0, -300)
                 .pause(Duration.ofMillis(500))
-                .moveByOffset(-100, 0)
+                .moveByOffset(0, 100)
                 .perform();
 
 
@@ -154,5 +128,15 @@ public class MainPage extends BasePage {
 
     public String getCurrentUrl() {
         return driver.getCurrentUrl();
+    }
+
+    public String getImg(WebElement sliderImg) {
+        return sliderImg.getAttribute("src");
+    }
+
+    public void waitForSlider() {
+        waitForElementVisible(slider, 5);
+
+        waitForElementVisible(sliderImg, 5);
     }
 }

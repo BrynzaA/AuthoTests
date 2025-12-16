@@ -24,7 +24,7 @@ public class LoginPage extends BasePage {
     @FindBy(id = "formly_1_input_username_0")
     private WebElement usernameFieldDesc;
 
-    @FindBy(xpath = "/html/body/div[1]/div/div/div/form/div[3]/button")
+    @FindBy(css = "body > div.jumbotron > div > div > div > form > div.form-actions > button")
     private WebElement loginButton;
 
     public void enterUsername(String username) {
@@ -47,11 +47,12 @@ public class LoginPage extends BasePage {
         loginButton.click();
     }
 
-    public void login(String username, String password, String usernameDesc) {
+    public LoginPage login(String username, String password, String usernameDesc) {
         enterUsername(username);
         enterPassword(password);
         enterUsernameDesc(usernameDesc);
         clickLoginButton();
+        return this;
     }
 
     public boolean isLoginSuccess() {
@@ -67,9 +68,10 @@ public class LoginPage extends BasePage {
         }
     }
 
-    public void open() {
+    public LoginPage open() {
         driver.get(ConfigReader.getLoginUrl());
         waitForPageLoad();
+        return this;
     }
 
 }

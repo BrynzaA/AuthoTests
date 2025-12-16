@@ -10,12 +10,9 @@ public class LoginPageTest extends BaseTest {
     @Test
     public void testLoginPage() {
         LoginPage loginPage = new LoginPage(driver);
-        loginPage.open();
-
-        loginPage.login(ConfigReader.getValidUsername(), ConfigReader.getValidPassword(), ConfigReader.getValidUsernameDesc());
+        loginPage.open().login(ConfigReader.getValidUsername(), ConfigReader.getValidPassword(), ConfigReader.getValidUsernameDesc());
 
         boolean isLoginSuccess = loginPage.isLoginSuccess();
-        System.out.println("Логин успешен: " + isLoginSuccess);
         Assert.assertTrue(isLoginSuccess, "Логин должен быть успешен");
     }
 }

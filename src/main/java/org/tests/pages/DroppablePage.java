@@ -1,5 +1,6 @@
 package org.tests.pages;
 
+import java.time.Duration;
 import java.util.List;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Point;
@@ -11,20 +12,22 @@ import org.tests.utils.ConfigReader;
 
 public class DroppablePage extends BasePage {
 
+    private WebElement element;
+
     public DroppablePage(WebDriver driver) {
         super(driver);
     }
 
-    @FindBy(xpath = "/html/body/section/div[1]/div[1]/div[1]/ul/li[1]/a")
+    @FindBy(css = "#wrapper > div.container.margin-top-20 > div.container.responsive-tabs-default > div.internal_navi > ul > li.active")
     private WebElement firstTestPageHref;
 
-    @FindBy(xpath = "/html/body/section/div[1]/div[1]/div[1]/ul/li[2]/a")
+    @FindBy(css = "#wrapper > div.container.margin-top-20 > div.container.responsive-tabs-default > div.internal_navi > ul > li:nth-child(2)")
     private WebElement secondTestPageHref;
 
-    @FindBy(xpath = "/html/body/section/div[1]/div[1]/div[1]/ul/li[3]/a")
+    @FindBy(css = "#wrapper > div.container.margin-top-20 > div.container.responsive-tabs-default > div.internal_navi > ul > li:nth-child(3)")
     private WebElement thirdTestPageHref;
 
-    @FindBy(xpath = "/html/body/section/div[1]/div[1]/div[1]/ul/li[4]/a")
+    @FindBy(css = "#wrapper > div.container.margin-top-20 > div.container.responsive-tabs-default > div.internal_navi > ul > li:nth-child(4)")
     private WebElement forthTestPageHref;
 
 
@@ -54,208 +57,175 @@ public class DroppablePage extends BasePage {
         return forthTestPageHref;
     }
 
-    public boolean isFirstTestPageWorks() {
-        waitForElementVisible(firstTestPageHref);
-        if (!firstTestPageHref.isDisplayed()) return false;
-
-        firstTestPageHref.click();
-
-        driver.get(ConfigReader.getDroppableUrl() + "#example-1-tab-1");
+    public void switchToTab(int tabIndex) {
+        switch (tabIndex) {
+            case 1:
+                getFirstTestPageHref();
+                break;
+            case 2:
+                getSecondTestPageHref();
+                break;
+            case 3:
+                getThirdTestPageHref();
+                break;
+            case 4:
+                getForthTestPageHref();
+                break;
+        }
+        driver.get(ConfigReader.getDroppableUrl() + "#example-1-tab-" + tabIndex);
         waitForPageLoad();
+    }
 
-        WebElement targetIframe = findIframeWithElement("droppable");
-
+    public void switchToTabIframe(int tabIndex) {
+        WebElement targetIframe = null;
+        switch (tabIndex) {
+            case 1:
+                targetIframe = findIframeWithElement("droppable");
+                break;
+            case 2:
+                targetIframe = findIframeWithElement("draggable-nonvalid");
+                break;
+            case 3:
+                targetIframe = findIframeWithElement("droppable2-inner");
+                break;
+            case 4:
+                targetIframe = findIframeWithElement("draggable2");
+                break;
+        }
+        assert targetIframe != null;
         driver.switchTo().frame(targetIframe);
+    }
+
+    private void dropHere(WebElement draggable) {
+        new Actions(driver).dragAndDrop(draggable, element)
+                .pause(Duration.ofMillis(500))
+                .perform();
+    }
+
+    private void dragALittleBit(WebElement draggable) {
+        new Actions(driver).dragAndDropBy(draggable, 1, 1)
+                .pause(Duration.ofMillis(500))
+                .perform();
+    }
+
+    private void dragALittleBitNTimes(WebElement draggable, int times) {
+        Actions actions = new Actions(driver);
+        for (int i = 0; i < times; i++) {
+            actions.dragAndDropBy(draggable, -1, -1);
+        }
+        actions.pause(Duration.ofMillis(500))
+                .perform();
+    }
+
+    private String getText() {
+        return element.getText();
+    }
+
+    private boolean isDropped() {
+        return getText().equals("Dropped!");
+    }
+
+    private boolean isDropped(WebElement webElement) {
+        return webElement.getText().equals("Dropped!");
+    }
+
+    public boolean isDropsOnDrop() {
 
         WebElement draggable = driver.findElement(By.id("draggable"));
 
-        WebElement droppable = driver.findElement(By.id("droppable"));
+        element = driver.findElement(By.id("droppable"));
 
+        dropHere(draggable);
 
-        try {
-            Actions actions = new Actions(driver);
-            actions.dragAndDrop(draggable, droppable).perform();
-
-            Thread.sleep(2000);
-
-            return droppable.getText().equals("Dropped!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        return isDropped();
     }
 
-    public boolean isSecondTestPageWorks() {
-        waitForElementVisible(secondTestPageHref);
-        if (!secondTestPageHref.isDisplayed()) return false;
 
-        secondTestPageHref.click();
+    public boolean isNotDropsOnNotDrop() {
+        WebElement draggable = driver.findElement(By.id("draggable"));
 
-        driver.get(ConfigReader.getDroppableUrl() + "#example-1-tab-2");
-        waitForPageLoad();
+        element = driver.findElement(By.id("droppable"));
 
-        WebElement targetIframe = findIframeWithElement("draggable-nonvalid");
+        dragALittleBit(draggable);
 
-        driver.switchTo().frame(targetIframe);
+        return !isDropped();
+    }
 
+    public boolean isAcceptTabNotDropOnNotDroppable() {
         WebElement draggableNonvalid = driver.findElement(By.id("draggable-nonvalid"));
-
-        WebElement draggable = driver.findElement(By.id("draggable"));
-
-        WebElement droppable = driver.findElement(By.id("droppable"));
-
-
-        try {
-            Actions actions = new Actions(driver);
-            actions.dragAndDrop(draggableNonvalid, droppable).perform();
-
-            Thread.sleep(2000);
-
-            if (droppable.getText().equals("Dropped!")) return false;
-
-            actions.dragAndDrop(draggable, droppable).perform();
-
-            Thread.sleep(2000);
-
-            return droppable.getText().equals("Dropped!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-
-
+        element = driver.findElement(By.id("droppable"));
+        dropHere(draggableNonvalid);
+        return !isDropped();
     }
 
-    public boolean isThirdTestPageWorks() {
-        waitForElementVisible(thirdTestPageHref);
-        if (!thirdTestPageHref.isDisplayed()) return false;
-
-        thirdTestPageHref.click();
-
-        driver.get(ConfigReader.getDroppableUrl() + "#example-1-tab-3");
-        waitForPageLoad();
-
-        WebElement targetIframe = findIframeWithElement("droppable2-inner");
-
-        driver.switchTo().frame(targetIframe);
+    public boolean isPreventPropagationTabNotGreedyDropsPropagateOnOuterDrop() {
 
         WebElement draggable = driver.findElement(By.id("draggable"));
 
         WebElement droppable = driver.findElement(By.id("droppable"));
 
-        WebElement droppableInner = driver.findElement(By.id("droppable-inner"));
+        element = driver.findElement(By.id("droppable-inner"));
+
+        dropHere(draggable);
+
+        return isDropped() && droppable.getText().equals("Dropped!\nDropped!");
+    }
+
+    public boolean isPreventPropagationTabGreedyDropsPropagateOnOuterDrop() {
+
+        WebElement draggable = driver.findElement(By.id("draggable"));
 
         WebElement droppable2 = driver.findElement(By.id("droppable2"));
 
-        WebElement droppable2Inner = driver.findElement(By.id("droppable2-inner"));
+        element = driver.findElement(By.id("droppable2-inner"));
 
+        dropHere(draggable);
 
-        try {
-            Actions actions = new Actions(driver);
-            actions.dragAndDrop(draggable, droppable).perform();
+        return isDropped() && !isDropped(droppable2);
 
-            Thread.sleep(2000);
-
-            actions.clickAndHold(draggable)
-                    .moveToElement(droppable2, 0, -50)
-                    .release().perform();
-
-            Thread.sleep(2000);
-
-            actions.dragAndDrop(draggable, droppable2Inner).perform();
-
-            Thread.sleep(2000);
-
-            actions.dragAndDrop(draggable, droppableInner).perform();
-
-            Thread.sleep(2000);
-
-
-
-            return droppable.getText().equals("Dropped!\nDropped!")
-                    && droppableInner.getText().equals("Dropped!")
-                    && droppable2.getText().equals("Dropped!\nDropped!")
-                    && droppable2Inner.getText().equals("Dropped!");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
     }
 
-    public boolean isForthTestPageWorks() {
-        waitForElementVisible(forthTestPageHref);
-        if (!forthTestPageHref.isDisplayed()) return false;
-
-        forthTestPageHref.click();
-
-        driver.get(ConfigReader.getDroppableUrl() + "#example-1-tab-4");
-        waitForPageLoad();
-
-        WebElement targetIframe = findIframeWithElement("draggable2");
-        driver.switchTo().frame(targetIframe);
-
-        WebElement draggable2 = driver.findElement(By.id("draggable2"));
+    public boolean isPreventPropagationTabGreedyOuterDrop() {
         WebElement draggable = driver.findElement(By.id("draggable"));
-        WebElement droppable = driver.findElement(By.id("droppable"));
 
-        try {
-            Point oldReturnOnDropLocation = draggable.getLocation();
-            Point oldNotReturnOnDropLocation = draggable2.getLocation();
-            Actions actions = new Actions(driver);
+        element = driver.findElement(By.id("droppable2"));
 
-            actions.dragAndDrop(draggable, droppable).perform();
-            Thread.sleep(2000);
+        new  Actions(driver).clickAndHold(draggable)
+                .moveToElement(element, 0, -50)
+                .release().pause(Duration.ofMillis(500)).perform();
 
-            boolean isDraggableTriggerDrop = droppable.getText().equals("Dropped!");
-            if (!isDraggableTriggerDrop) return false;
+        return element.getText().equals("Dropped!\nDropped!");
+    }
 
-            boolean isDraggableReturned = draggable.getLocation().equals(oldReturnOnDropLocation);
-            if (!isDraggableReturned) return false;
+    public boolean isRevertDraggableTabRevertOnDrop() {
+        WebElement draggable = driver.findElement(By.id("draggable"));
+        element = driver.findElement(By.id("droppable"));
+        Point oldLocation = draggable.getLocation();
+        dropHere(draggable);
+        return oldLocation.equals(draggable.getLocation());
 
-            actions.dragAndDropBy(draggable, oldReturnOnDropLocation.x + 10, oldReturnOnDropLocation.y + 10).perform();
-            Thread.sleep(2000);
+    }
 
-            boolean isDraggableNotStayed = !draggable.getLocation().equals(oldReturnOnDropLocation);
-            if (!isDraggableNotStayed) return false;
+    public boolean isRevertDraggableTabNonRevertOnDrop() {
+        WebElement draggable = driver.findElement(By.id("draggable"));
+        Point oldLocation = draggable.getLocation();
+        dragALittleBit(draggable);
+        return !oldLocation.equals(draggable.getLocation());
+    }
 
-            actions.dragAndDropBy(draggable2, 0, 0).perform();
-            Thread.sleep(2000);
+    public boolean isRevertDraggableTabNonRevertOnNonDrop() {
+        WebElement draggable = driver.findElement(By.id("draggable2"));
+        Point oldLocation = draggable.getLocation();
+        dragALittleBit(draggable);
+        return oldLocation.equals(draggable.getLocation());
+    }
 
-            boolean isDraggable2ReturnedOutside = draggable2.getLocation().equals(oldNotReturnOnDropLocation);
-            if (!isDraggable2ReturnedOutside) return false;
-
-            actions.dragAndDrop(draggable2, droppable).perform();
-            Thread.sleep(2000);
-
-            boolean isDraggable2TriggerDrop = droppable.getText().equals("Dropped!");
-            if (!isDraggable2TriggerDrop) return false;
-
-            Point newReturnOnDropLocation = draggable2.getLocation();
-
-            actions.dragAndDrop(draggable2, draggable).perform();
-            Thread.sleep(2000);
-
-            boolean isDraggable2ReturnedFromDrop = draggable2.getLocation().equals(newReturnOnDropLocation);
-            if (!isDraggable2ReturnedFromDrop) return false;
-
-            actions.dragAndDropBy(draggable2, 1, 1).perform();
-            Thread.sleep(2000);
-
-            boolean isDraggable2MovedInside = !draggable2.getLocation().equals(newReturnOnDropLocation);
-            if (!isDraggable2MovedInside) return false;
-
-            return true;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            try {
-                driver.switchTo().defaultContent();
-            } catch (Exception e) {
-                // Игнорируем
-            }
-        }
+    public boolean isRevertDraggableTabRevertOnNonDrop() {
+        WebElement draggable = driver.findElement(By.id("draggable2"));
+        element = driver.findElement(By.id("droppable"));
+        Point oldLocation = draggable.getLocation();
+        dropHere(draggable);
+        return !oldLocation.equals(draggable.getLocation());
     }
 
     private WebElement findIframeWithElement(String elementId) {
@@ -268,7 +238,6 @@ public class DroppablePage extends BasePage {
 
                     List<WebElement> draggables = driver.findElements(By.id(elementId));
                     if (!draggables.isEmpty()) {
-                        System.out.println("Найден " + elementId + " в iframe");
                         return iframe;
                     }
                 } catch (Exception ignored) {
@@ -276,10 +245,10 @@ public class DroppablePage extends BasePage {
                     driver.switchTo().defaultContent();
                 }
             }
-            throw new RuntimeException("Не удалось найти iframe с draggable элементом");
+            throw new RuntimeException("Не удалось найти iframe с " + elementId +" элементом");
 
         } catch (Exception e) {
-            throw new RuntimeException("Не удалось найти iframe с draggable элементом", e);
+            throw new RuntimeException("Не удалось найти iframe с " + elementId + " элементом", e);
         }
     }
 
@@ -289,4 +258,5 @@ public class DroppablePage extends BasePage {
         driver.get(ConfigReader.getDroppableUrl());
         waitForPageLoad();
     }
+
 }
