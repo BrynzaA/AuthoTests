@@ -1,13 +1,20 @@
 package org.tests;
 
+import io.qameta.allure.*;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import org.tests.pages.DroppablePage;
 
+@Epic("Drag and drop")
+@Feature("Страница droppable")
+@Owner("A Brynza")
 public class DroppableTest extends BaseTest {
 
 
     @Test
+    @Story("Успешное поведение на вкладке Default Functionality")
+    @Description("Тест проверяет корректное поведение droppable и draggable элементов на вкладке Default Functionality")
+    @Severity(SeverityLevel.CRITICAL)
     public void testDefaultFunctionalityTab() {
         DroppablePage droppablePage = new DroppablePage(driver);
         droppablePage.open();
@@ -28,6 +35,9 @@ public class DroppableTest extends BaseTest {
     }
 
     @Test
+    @Story("Успешное поведение на вкладке Accept")
+    @Description("Тест проверяет корректное поведение droppable, draggable и non valid draggable элементов на вкладке Accept")
+    @Severity(SeverityLevel.CRITICAL)
     public void testAcceptTab() {
         DroppablePage droppablePage = new DroppablePage(driver);
         droppablePage.open();
@@ -49,6 +59,9 @@ public class DroppableTest extends BaseTest {
     }
 
     @Test
+    @Story("Успешное поведение на вкладке Prevent Propagation")
+    @Description("Тест проверяет корректное поведение множественных droppable и draggable элементов, а так же greedy/not-greedy элементов на вкладке Prevent Propagation")
+    @Severity(SeverityLevel.CRITICAL)
     public void testPreventPropagationTab() {
         DroppablePage droppablePage = new DroppablePage(driver);
         droppablePage.open();
@@ -74,6 +87,9 @@ public class DroppableTest extends BaseTest {
     }
 
     @Test
+    @Story("Успешное поведение на вкладке Draggable Position")
+    @Description("Тест проверяет корректное поведение droppable и draggable элементов, с условиями возврата на предыдущие позиции на вкладке Draggable Position")
+    @Severity(SeverityLevel.CRITICAL)
     public void testRevertDraggablePositionTab() {
         DroppablePage droppablePage = new DroppablePage(driver);
         droppablePage.open();
