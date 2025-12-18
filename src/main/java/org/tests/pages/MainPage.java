@@ -1,5 +1,6 @@
 package org.tests.pages;
 
+import io.qameta.allure.Step;
 import java.time.Duration;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -25,20 +26,23 @@ public class MainPage extends BasePage {
     @FindBy(xpath = "//div[contains(@class, 'elementor-swiper')]//img[not(contains(@style, 'display: none'))]")
     private WebElement sliderImg;
 
-
+    @Step("Открыть главную страницу")
     public void open() {
         driver.get(ConfigReader.getMainUrl());
         waitForPageLoad();
     }
 
+    @Step("Проверить успешность отображения хедера")
     public boolean isHeaderDisplayed() {
         return waitForElementVisible(header).isDisplayed();
     }
 
+    @Step("Проверить успешность отображения футера")
     public boolean isFooterDisplayed() {
         return waitForElementVisible(footer).isDisplayed();
     }
 
+    @Step("Проверить успешность работы слайдера")
     public boolean isSliderWorks() {
         try {
             waitForSlider();
@@ -66,6 +70,7 @@ public class MainPage extends BasePage {
         }
     }
 
+    @Step("Проверить успешность работы слайдера в двух направлениях")
     public boolean isSliderWorksBackwards() {
         try {
             waitForSlider();
@@ -98,6 +103,7 @@ public class MainPage extends BasePage {
         }
     }
 
+    @Step("Проверить успешность отображения хэдера при скроллинге в конец страницы")
     public boolean isHeaderScrolledToFooterVisible() {
         waitForElementVisible(footer, 1);
 
@@ -109,6 +115,7 @@ public class MainPage extends BasePage {
         return header.isDisplayed();
     }
 
+    @Step("Проверить успешность отображения хэдера при скроллинге по координатам")
     public boolean isHeaderScrolledToFixCoordinateVisible() {
         waitForElementVisible(header, 1);
 
@@ -122,19 +129,21 @@ public class MainPage extends BasePage {
         return header.isDisplayed();
     }
 
+    @Step("Получить заглавие страницы")
     public String getPageTitle() {
         return driver.getTitle();
     }
 
+    @Step("Получить URL страницы")
     public String getCurrentUrl() {
         return driver.getCurrentUrl();
     }
 
-    public String getImg(WebElement sliderImg) {
+    private String getImg(WebElement sliderImg) {
         return sliderImg.getAttribute("src");
     }
 
-    public void waitForSlider() {
+    private void waitForSlider() {
         waitForElementVisible(slider, 5);
 
         waitForElementVisible(sliderImg, 5);

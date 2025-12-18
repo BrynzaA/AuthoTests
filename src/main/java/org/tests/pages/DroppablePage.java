@@ -1,5 +1,6 @@
 package org.tests.pages;
 
+import io.qameta.allure.Step;
 import java.time.Duration;
 import java.util.List;
 import org.openqa.selenium.By;
@@ -57,6 +58,7 @@ public class DroppablePage extends BasePage {
         return forthTestPageHref;
     }
 
+    @Step("Переключиться на вкладку")
     public void switchToTab(int tabIndex) {
         switch (tabIndex) {
             case 1:
@@ -76,6 +78,7 @@ public class DroppablePage extends BasePage {
         waitForPageLoad();
     }
 
+    @Step("Переключиться на нужный iframe")
     public void switchToTabIframe(int tabIndex) {
         WebElement targetIframe = null;
         switch (tabIndex) {
@@ -129,6 +132,7 @@ public class DroppablePage extends BasePage {
         return webElement.getText().equals("Dropped!");
     }
 
+    @Step("Проверка, что перетягивание draggable на droppable вызывает изменение droppable на Dropped!")
     public boolean isDropsOnDrop() {
 
         WebElement draggable = driver.findElement(By.id("draggable"));
@@ -140,7 +144,7 @@ public class DroppablePage extends BasePage {
         return isDropped();
     }
 
-
+    @Step("Проверка, что перетягивание draggable не на droppable не вызывает изменение droppable на Dropped!")
     public boolean isNotDropsOnNotDrop() {
         WebElement draggable = driver.findElement(By.id("draggable"));
 
@@ -151,6 +155,7 @@ public class DroppablePage extends BasePage {
         return !isDropped();
     }
 
+    @Step("Проверка, что перетягивание non-valid-draggable на droppable не вызывает изменение droppable на Dropped!")
     public boolean isAcceptTabNotDropOnNotDroppable() {
         WebElement draggableNonvalid = driver.findElement(By.id("draggable-nonvalid"));
         element = driver.findElement(By.id("droppable"));
@@ -158,6 +163,7 @@ public class DroppablePage extends BasePage {
         return !isDropped();
     }
 
+    @Step("Проверка, что перетягивание draggable на non greedy droppable вызывает изменение внешнего droppable на Dropped!")
     public boolean isPreventPropagationTabNotGreedyDropsPropagateOnOuterDrop() {
 
         WebElement draggable = driver.findElement(By.id("draggable"));
@@ -171,6 +177,7 @@ public class DroppablePage extends BasePage {
         return isDropped() && droppable.getText().equals("Dropped!\nDropped!");
     }
 
+    @Step("Проверка, что перетягивание draggable на greedy droppable не вызывает изменение внешнего droppable на Dropped!")
     public boolean isPreventPropagationTabGreedyDropsPropagateOnOuterDrop() {
 
         WebElement draggable = driver.findElement(By.id("draggable"));
@@ -185,6 +192,7 @@ public class DroppablePage extends BasePage {
 
     }
 
+    @Step("Проверка, что перетягивание draggable на внешний droppable вызывает его изменение на Dropped!")
     public boolean isPreventPropagationTabGreedyOuterDrop() {
         WebElement draggable = driver.findElement(By.id("draggable"));
 
@@ -197,6 +205,7 @@ public class DroppablePage extends BasePage {
         return element.getText().equals("Dropped!\nDropped!");
     }
 
+    @Step("Проверка, что перетягивание draggable, возвращающегося при попадании на droppable вызывает его возвращение на исходное место")
     public boolean isRevertDraggableTabRevertOnDrop() {
         WebElement draggable = driver.findElement(By.id("draggable"));
         element = driver.findElement(By.id("droppable"));
@@ -206,6 +215,7 @@ public class DroppablePage extends BasePage {
 
     }
 
+    @Step("Проверка, что перетягивание draggable, возвращающегося при попадании на droppable, не на droppable не вызывает его возвращение на исходное место")
     public boolean isRevertDraggableTabNonRevertOnDrop() {
         WebElement draggable = driver.findElement(By.id("draggable"));
         Point oldLocation = draggable.getLocation();
@@ -213,6 +223,7 @@ public class DroppablePage extends BasePage {
         return !oldLocation.equals(draggable.getLocation());
     }
 
+    @Step("Проверка, что перетягивание draggable, возвращающегося при попадании не на droppable, не на droppable вызывает его возвращение на исходное место")
     public boolean isRevertDraggableTabNonRevertOnNonDrop() {
         WebElement draggable = driver.findElement(By.id("draggable2"));
         Point oldLocation = draggable.getLocation();
@@ -220,6 +231,7 @@ public class DroppablePage extends BasePage {
         return oldLocation.equals(draggable.getLocation());
     }
 
+    @Step("Проверка, что перетягивание draggable, возвращающегося при попадании не на droppable, на droppable не вызывает его возвращение на исходное место")
     public boolean isRevertDraggableTabRevertOnNonDrop() {
         WebElement draggable = driver.findElement(By.id("draggable2"));
         element = driver.findElement(By.id("droppable"));
@@ -253,7 +265,7 @@ public class DroppablePage extends BasePage {
     }
 
 
-
+    @Step("Открыть страницу с Drag and Drop")
     public void open() {
         driver.get(ConfigReader.getDroppableUrl());
         waitForPageLoad();

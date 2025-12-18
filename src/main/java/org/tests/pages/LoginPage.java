@@ -1,7 +1,7 @@
 package org.tests.pages;
 
+import io.qameta.allure.Step;
 import java.time.Duration;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
@@ -27,26 +27,31 @@ public class LoginPage extends BasePage {
     @FindBy(css = "body > div.jumbotron > div > div > div > form > div.form-actions > button")
     private WebElement loginButton;
 
+    @Step("Ввести имя пользователя")
     public void enterUsername(String username) {
         waitForElementVisible(usernameField);
         usernameField.sendKeys(username);
     }
 
+    @Step("Ввести пароль")
     public void enterPassword(String password) {
         waitForElementVisible(passwordField);
         passwordField.sendKeys(password);
     }
 
+    @Step("Ввести описание пользователя")
     public void enterUsernameDesc(String usernameDesc) {
         waitForElementVisible(usernameFieldDesc);
         usernameFieldDesc.sendKeys(usernameDesc);
     }
 
+    @Step("Нажать кнопку 'Login'")
     public void clickLoginButton() {
         waitForElementVisible(loginButton);
         loginButton.click();
     }
 
+    @Step("Выполнить логин с username={username}, password={password}, description={usernameDesc}")
     public LoginPage login(String username, String password, String usernameDesc) {
         enterUsername(username);
         enterPassword(password);
@@ -55,6 +60,7 @@ public class LoginPage extends BasePage {
         return this;
     }
 
+    @Step("Проверить успешность логина")
     public boolean isLoginSuccess() {
         try {
             new WebDriverWait(driver, Duration.ofSeconds(5)).until(ExpectedConditions.urlToBe(ConfigReader.getLoginSuccessUrl()));
@@ -68,6 +74,7 @@ public class LoginPage extends BasePage {
         }
     }
 
+    @Step("Открыть страницу логина")
     public LoginPage open() {
         driver.get(ConfigReader.getLoginUrl());
         waitForPageLoad();
