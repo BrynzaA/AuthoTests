@@ -2,6 +2,8 @@ package org.tests;
 
 import io.qameta.allure.*;
 import org.testng.Assert;
+import org.testng.ITestResult;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import org.tests.pages.MainPage;
@@ -10,6 +12,13 @@ import org.tests.pages.MainPage;
 @Feature("Главная страница")
 @Owner("A Brynza")
 public class MainPageTest extends BaseTest {
+
+    @AfterMethod
+    public void takeScreenshotOnFailure(ITestResult result) {
+        if (result.getStatus() == ITestResult.FAILURE) {
+            captureScreenshot(result.getMethod().getMethodName());
+        }
+    }
 
     @Test
     @Story("Успешное отображение главной страницы")
@@ -82,6 +91,20 @@ public class MainPageTest extends BaseTest {
 //        softAssert.assertTrue(isSliderWorksBackwards, "Слайдер должен возвращаться назад при свайпе туда-обратно");
 
         softAssert.assertAll();
+    }
+
+    //Задача U4. Screenshots
+    @Test(retryAnalyzer = SingleTestRetryAnalyzer.class)
+    @Story("Падающий тест - проверка заголовка страницы")
+    @Description("Тест специально падает из-за неверного заголовка")
+    @Severity(SeverityLevel.MINOR)
+    public void testFailingPageTitle() {
+        MainPage mainPage = new MainPage(driver);
+        mainPage.open();
+
+        String pageTitle = mainPage.getPageTitle();
+        Assert.assertEquals(pageTitle, "Неправильный заголовок",
+                "Этот тест специально падает из-за неверного заголовка");
     }
 
 }

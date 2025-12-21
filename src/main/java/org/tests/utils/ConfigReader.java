@@ -28,6 +28,15 @@ public class ConfigReader {
         return getProperty("valid.username");
     }
 
+    public static String getValidBasicPassword() {
+        return getProperty("valid.basicPassword");
+
+    }
+
+    public static String getValidBasicUsername() {
+        return getProperty("valid.basicUsername");
+    }
+
     public static String getValidPassword() {
         return getProperty("valid.password");
     }
@@ -50,5 +59,34 @@ public class ConfigReader {
 
     public static String getDroppableUrl() {
         return getProperty("droppable.url");
+    }
+
+    public static String getTabsUrl() {
+        return getProperty("tabs.url");
+    }
+
+    public static String getAlertsUrl() {
+        return getProperty("alerts.url");
+    }
+
+    public static String getBasicAuthUrl() {
+        return getProperty("basicAuth.url");
+    }
+
+    public static String getBrowser() {
+        return System.getProperty("browser", getProperty("default.browser"));
+    }
+
+    public static boolean useGrid() {
+        String useGrid = System.getProperty("useGrid", getProperty("use.grid"));
+        return Boolean.parseBoolean(useGrid);
+    }
+
+    public static String getGridUrl() {
+        return System.getProperty("gridUrl", getProperty("grid.hub.url"));
+    }
+
+    public static String getBaseUrl() {
+        return getProperty("base.url");
     }
 }
