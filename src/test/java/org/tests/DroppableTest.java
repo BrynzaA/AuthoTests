@@ -5,6 +5,7 @@ import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import org.tests.pages.DroppablePage;
 
+//Задача U10. Drag n Drop (IFrame)
 @Epic("Drag and drop")
 @Feature("Страница droppable")
 @Owner("A Brynza")

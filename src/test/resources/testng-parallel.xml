@@ -1,0 +1,27 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<!--Задача U7. Параллельный запуск тестов-->
+<suite name="Parallel Authorization Tests" parallel="tests" thread-count="3">
+
+    <test name="Single Login Test" parallel="methods" thread-count="2">
+        <parameter name="browser" value="chrome"/>
+        <classes>
+            <class name="org.tests.LoginPageTest">
+                <methods>
+                    <include name="testLoginPage"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+    <test name="Parameterized Login Tests" parallel="methods" thread-count="4">
+        <parameter name="browser" value="chrome"/>
+        <classes>
+            <class name="org.tests.LoginPageDataProviderTest">
+                <methods>
+                    <include name="testLoginWithDifferentCredentials"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+</suite>

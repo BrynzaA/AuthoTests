@@ -82,6 +82,13 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>test-resources/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <!--Задача U7. Параллельный запуск тестов-->
+<!--                    <suiteXmlFiles>-->
+<!--                        <suiteXmlFile>src/test/resources/testng-parallel.xml</suiteXmlFile>-->
+<!--                    </suiteXmlFiles>-->
+<!--                    <parallel>tests</parallel>-->
+<!--                    <threadCount>3</threadCount>-->
+<!--                    <perCoreThreadCount>true</perCoreThreadCount>-->
                     <argLine>
                         -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                         -Dfile.encoding=UTF-8
