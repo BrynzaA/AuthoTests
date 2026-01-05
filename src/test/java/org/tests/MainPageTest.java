@@ -94,17 +94,17 @@ public class MainPageTest extends BaseTest {
     }
 
     //Задача U4. Screenshots
-    @Test(retryAnalyzer = SingleTestRetryAnalyzer.class)
-    @Story("Падающий тест - проверка заголовка страницы")
-    @Description("Тест специально падает из-за неверного заголовка")
-    @Severity(SeverityLevel.MINOR)
-    public void testFailingPageTitle() {
-        MainPage mainPage = new MainPage(driver);
-        mainPage.open();
-
-        String pageTitle = mainPage.getPageTitle();
-        Assert.assertEquals(pageTitle, "Неправильный заголовок",
-                "Этот тест специально падает из-за неверного заголовка");
-    }
+//    @Test(retryAnalyzer = SingleTestRetryAnalyzer.class)
+//    @Story("Падающий тест - проверка заголовка страницы")
+//    @Description("Тест специально падает из-за неверного заголовка")
+//    @Severity(SeverityLevel.MINOR)
+//    public void testFailingPageTitle() {
+//        MainPage mainPage = new MainPage(driver);
+//        mainPage.open();
+//
+//        String pageTitle = mainPage.getPageTitle();
+//        Assert.assertEquals(pageTitle, "Неправильный заголовок",
+//                "Этот тест специально падает из-за неверного заголовка");
+//    }
 
 }
