@@ -15,12 +15,12 @@ RUN wget https://github.com/allure-framework/allure2/releases/download/$ALLURE_V
 
 WORKDIR /app
 
-COPY . .
-
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
+
+COPY src ./src
 
 ENV MAVEN_OPTS="-Dmaven.repo.local=/root/.m2/repository"
 ENV JAVA_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
 
-CMD ["sh", "-c", "mvn clean test && mvn allure:report"]
+CMD ["sh", "-c", "echo 'Container ready for test execution' && tail -f /dev/null"]

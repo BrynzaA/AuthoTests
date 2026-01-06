@@ -29,6 +29,10 @@ pipeline {
                         rmdir /s /q selenoid\\videos 2>nul
                         mkdir selenoid\\videos 2>nul
                         mkdir selenoid\\logs 2>nul
+
+                        rem Очищаем target директорию
+                        rmdir /s /q target 2>nul
+                        mkdir target 2>nul
                     '''
                 }
             }
@@ -71,7 +75,8 @@ pipeline {
                     bat '''
                         echo Running tests...
 
-                        docker run --rm --name tests --network host -v "%cd%\\test-output:/app/test-output" -v "%cd%\\target:/app/target" -e SELENOID_HOST=localhost -e SELENOID_PORT=4444 -e BROWSER=chrome -e TEST_OUTPUT_DIR=/app/test-output autotests-runner:latest sh -c "echo 'Starting tests...' && mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=$${BROWSER} && echo 'Tests completed, generating report...' && mvn allure:report -Dallure.results.directory=$${TEST_OUTPUT_DIR}/allure-results && cp -r target/surefire-reports $${TEST_OUTPUT_DIR}/ 2>/dev/null || true && echo 'Results copied to output directory'"
+                        rem Запускаем тесты без монтирования target директории
+                        docker run --rm --name tests --network host -v "%cd%\\test-output:/app/test-output" -e SELENOID_HOST=localhost -e SELENOID_PORT=4444 -e BROWSER=chrome -e TEST_OUTPUT_DIR=/app/test-output autotests-runner:latest sh -c "echo 'Starting tests...' && mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=\\$${BROWSER} -DskipTests=false && echo 'Tests completed, generating report...' && mvn allure:report -Dallure.results.directory=\\$${TEST_OUTPUT_DIR}/allure-results && cp -r target/surefire-reports \\$${TEST_OUTPUT_DIR}/ 2>/dev/null || true && echo 'Results copied to output directory'"
 
                         if errorlevel 1 (
                             echo WARNING: Tests may have failed, but collecting results...
@@ -90,17 +95,30 @@ pipeline {
                         docker logs tests > test-runner.log 2>&1
                         docker logs selenoid > selenoid.log 2>&1
 
+                        rem Копируем результаты из контейнера
+                        echo Copying results from container...
+                        docker cp tests:/app/target/surefire-reports target/ 2>nul || echo No surefire reports
+                        docker cp tests:/app/target/allure-results target/ 2>nul || echo No allure results
+                        docker cp tests:/app/target/allure-report target/ 2>nul || echo No allure report
+
+                        rem Также проверяем test-output
                         if exist "test-output" (
-                            echo Copying test results...
+                            echo Copying from test-output...
                             xcopy /E /I /Y test-output\\* target\\ 2>nul
                         )
 
+                        rem Создаем структуру если пусто
                         mkdir target\\surefire-reports 2>nul
                         mkdir target\\allure-results 2>nul
+                        mkdir target\\allure-report 2>nul
                     '''
 
                     archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
-                    archiveArtifacts artifacts: 'target/**/*'
+                    script {
+                        if (fileExists('target')) {
+                            archiveArtifacts artifacts: 'target/**/*'
+                        }
+                    }
                 }
             }
         }
@@ -111,6 +129,7 @@ pipeline {
                     bat '''
                         if exist "target\\allure-results" (
                             echo Generating Allure report...
+                            dir target\\allure-results
                         ) else (
                             echo No Allure results found
                         )
@@ -120,8 +139,10 @@ pipeline {
                         if (fileExists('target/allure-results')) {
                             allure([
                                 results: [[path: 'target/allure-results']],
-                                report: 'allure-report'
+                                report: 'target/allure-report'
                             ])
+
+                            archiveArtifacts artifacts: 'target/allure-report/**/*'
                         }
                     }
                 }
@@ -144,7 +165,13 @@ pipeline {
 
     post {
         always {
-            junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+            script {
+                if (fileExists('target/surefire-reports')) {
+                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+                } else {
+                    echo 'No test results found for JUnit report'
+                }
+            }
 
             emailext(
                 to: 'aleksandr.brynza@simbirsoft.com',
