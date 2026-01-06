@@ -17,16 +17,8 @@ pipeline {
                 script {
                     bat '''
                         echo Cleaning up previous Docker containers...
-
-                        rem Останавливаем контейнеры с именем selenoid
-                        docker stop selenoid 2>nul || echo No selenoid container to stop
-                        docker rm selenoid 2>nul || echo No selenoid container to remove
-
-                        rem Останавливаем все контейнеры проекта
                         docker-compose down -v --remove-orphans 2>nul || echo No containers to stop
-
-                        rem Очищаем сети
-                        docker network prune -f 2>nul
+                        docker system prune -f 2>nul
                     '''
                 }
             }
@@ -36,10 +28,13 @@ pipeline {
             steps {
                 script {
                     bat '''
+                        mkdir test-output 2>nul
                         mkdir allure-results 2>nul
                         mkdir allure-report 2>nul
-                        mkdir test-results 2>nul
                         mkdir target 2>nul
+                        rmdir /s /q selenoid\\videos 2>nul
+                        mkdir selenoid\\videos 2>nul
+                        mkdir selenoid\\logs 2>nul
                     '''
                 }
             }
@@ -59,17 +54,16 @@ pipeline {
                 script {
                     bat '''
                         set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        echo Starting Selenoid with project name: %COMPOSE_PROJECT_NAME%
+                        echo Starting Selenoid with project name: %%COMPOSE_PROJECT_NAME%%
 
-                        rem Запускаем только selenoid (без selenoid-ui)
-                        docker-compose -p %COMPOSE_PROJECT_NAME% up -d selenoid
+                        rem Запускаем Selenoid
+                        docker-compose -p %%COMPOSE_PROJECT_NAME%% up -d selenoid
 
-                        rem Ждем запуска Selenoid (15 секунд)
+                        rem Ждем запуска
                         echo Waiting for Selenoid to start...
                         ping -n 15 127.0.0.1 >nul
 
-                        rem Проверяем что Selenoid запустился
-                        echo Checking Selenoid status...
+                        rem Проверяем статус
                         curl -f http://localhost:4444/status
                         if errorlevel 1 (
                             echo ERROR: Selenoid failed to start
@@ -87,16 +81,14 @@ pipeline {
                 script {
                     bat '''
                         set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        echo Running tests with project name: %COMPOSE_PROJECT_NAME%
+                        echo Running tests with project name: %%COMPOSE_PROJECT_NAME%%
 
                         rem Запускаем тесты
-                        docker-compose -p %COMPOSE_PROJECT_NAME% run --rm tests
+                        docker-compose -p %%COMPOSE_PROJECT_NAME%% up tests
 
-                        rem Проверяем код возврата
+                        rem Проверяем результат
                         if errorlevel 1 (
-                            echo WARNING: Tests failed, but continuing to collect results...
-                        ) else (
-                            echo SUCCESS: All tests passed!
+                            echo WARNING: Tests may have failed, but collecting results...
                         )
                     '''
                 }
@@ -107,49 +99,25 @@ pipeline {
                     script {
                         bat '''
                             set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                            docker-compose -p %COMPOSE_PROJECT_NAME% logs tests > test-runner.log 2>&1
-                            docker-compose -p %COMPOSE_PROJECT_NAME% logs selenoid > selenoid.log 2>&1
+
+                            rem Сохраняем логи
+                            docker-compose -p %%COMPOSE_PROJECT_NAME%% logs tests > test-runner.log 2>&1
+                            docker-compose -p %%COMPOSE_PROJECT_NAME%% logs selenoid > selenoid.log 2>&1
+
+                            rem Копируем результаты из test-output
+                            if exist "test-output" (
+                                echo Copying test results...
+                                xcopy /E /I /Y test-output\\* target\\ 2>nul
+                            )
+
+                            rem Создаем структуру каталогов если нет результатов
+                            mkdir target\\surefire-reports 2>nul
+                            mkdir target\\allure-results 2>nul
                         '''
 
                         archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
+                        archiveArtifacts artifacts: 'target/**/*'
                     }
-                }
-            }
-        }
-
-        stage('Collect Results') {
-            steps {
-                script {
-                    bat '''
-                        echo Collecting test results...
-
-                        rem Создаем базовую структуру каталогов
-                        mkdir target\\surefire-reports 2>nul
-                        mkdir target\\allure-results 2>nul
-                        mkdir target\\site\\allure-maven-plugin 2>nul
-
-                        rem Копируем результаты тестов если есть
-                        if exist "test-results\\surefire-reports" (
-                            echo Copying surefire reports...
-                            xcopy /E /I /Y test-results\\surefire-reports\\* target\\surefire-reports\\ 2>nul
-                        )
-
-                        if exist "allure-results" (
-                            echo Copying allure results...
-                            xcopy /E /I /Y allure-results\\* target\\allure-results\\ 2>nul
-                        )
-
-                        rem Создаем минимальный отчет если нет результатов
-                        if not exist "target\\surefire-reports\\*.xml" (
-                            echo Creating minimal test report...
-                            echo ^<?xml version="1.0" encoding="UTF-8"?^> > target\\surefire-reports\\tests.xml
-                            echo ^<testsuite name="DockerTests" tests="1" failures="0" errors="0" skipped="0" time="0.1"^> >> target\\surefire-reports\\tests.xml
-                            echo ^<testcase name="dockerTestRun" classname="DockerTestRunner" time="0.1"/^> >> target\\surefire-reports\\tests.xml
-                            echo ^</testsuite^> >> target\\surefire-reports\\tests.xml
-                        )
-                    '''
-
-                    archiveArtifacts artifacts: 'target/**/*'
                 }
             }
         }
@@ -158,15 +126,16 @@ pipeline {
             steps {
                 script {
                     bat '''
+                        rem Генерируем Allure отчет если есть результаты
                         if exist "target\\allure-results" (
                             echo Generating Allure report...
-                            if exist "C:\\ProgramData\\Jenkins\\.jenkins\\tools\\ru.yandex.qatools.allure.jenkins.tools.AllureCommandlineInstallation\\allure\\bin\\allure.bat" (
-                                call "C:\\ProgramData\\Jenkins\\.jenkins\\tools\\ru.yandex.qatools.allure.jenkins.tools.AllureCommandlineInstallation\\allure\\bin\\allure.bat" generate target\\allure-results -o allure-report-generated
+                            if exist "allure.bat" (
+                                allure generate target\\allure-results -o allure-report-generated
                             ) else (
-                                echo Allure commandline not found, skipping report generation
+                                echo Allure not found, using Jenkins plugin
                             )
                         ) else (
-                            echo No allure results found
+                            echo No Allure results found
                         )
                     '''
 
@@ -190,10 +159,7 @@ pipeline {
                     bat '''
                         echo Stopping Docker containers...
                         set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        docker-compose -p %COMPOSE_PROJECT_NAME% down -v --remove-orphans 2>nul
-
-                        rem Очищаем временные контейнеры
-                        docker system prune -f 2>nul
+                        docker-compose -p %%COMPOSE_PROJECT_NAME%% down -v --remove-orphans 2>nul
                     '''
                 }
             }
@@ -222,9 +188,16 @@ pipeline {
                         <li><a href="${env.BUILD_URL}artifact/">Все файлы</a></li>
                     </ul>
 
+                    <h3>Логи:</h3>
+                    <ul>
+                        <li><a href="${env.BUILD_URL}artifact/test-runner.log">Лог тестов</a></li>
+                        <li><a href="${env.BUILD_URL}artifact/selenoid.log">Лог Selenoid</a></li>
+                    </ul>
+
                     <p><small>Запуск в Docker контейнерах с Selenoid</small></p>
                 """,
-                mimeType: 'text/html'
+                mimeType: 'text/html',
+                attachmentsPattern: 'test-runner.log, selenoid.log'
             )
 
             cleanWs()
