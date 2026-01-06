@@ -75,10 +75,10 @@ pipeline {
             steps {
                 script {
                     bat '''
-                        echo Running tests...
+                        echo Running tests with Selenoid...
 
-                        rem Используем простую команду без сложного экранирования
-                        docker run --rm --name tests --network host -v "%cd%\\test-output:/app/test-output" -e SELENOID_HOST=localhost -e SELENOID_PORT=4444 -e BROWSER=chrome autotests-runner:latest sh -c "mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=chrome -DskipTests=false"
+                        rem Запускаем тесты с явным указанием использовать Selenoid
+                        docker run --rm --name tests --network host -v "%cd%\\test-output:/app/test-output" autotests-runner:latest sh -c "mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=chrome -Dselenium.remote=true"
 
                         if errorlevel 1 (
                             echo WARNING: Tests may have failed, but collecting results...
@@ -88,17 +88,24 @@ pipeline {
             }
         }
 
-        stage('Generate Allure Report') {
+        stage('Generate Reports') {
             steps {
                 script {
                     bat '''
-                        echo Generating Allure report...
+                        echo Generating reports...
 
-                        rem Генерируем отчет внутри контейнера
-                        docker run --rm --name allure-generator --network host -v "%cd%\\test-output:/app/test-output" autotests-runner:latest sh -c "if [ -d /app/test-output/allure-results ]; then mvn allure:report -Dallure.results.directory=/app/test-output/allure-results; cp -r target/allure-report /app/test-output/ 2>/dev/null || true; fi"
+                        rem Генерируем Allure отчет
+                        docker run --rm --name report-generator -v "%cd%\\test-output:/app/test-output" autotests-runner:latest sh -c "if [ -d /app/test-output/allure-results ]; then mvn allure:report -Dallure.results.directory=/app/test-output/allure-results; fi"
 
-                        rem Копируем surefire reports если они есть
-                        docker run --rm --name report-copier -v "%cd%\\test-output:/app/test-output" autotests-runner:latest sh -c "cp -r target/surefire-reports /app/test-output/ 2>/dev/null || true"
+                        rem Копируем результаты из контейнера тестов
+                        docker cp tests:/app/target/surefire-reports target/ 2>nul || echo No surefire reports to copy
+                        docker cp tests:/app/target/allure-results target/ 2>nul || echo No allure results to copy
+
+                        rem Также копируем из test-output
+                        if exist "test-output" (
+                            echo Copying from test-output...
+                            xcopy /E /I /Y test-output\\* target\\ 2>nul
+                        )
                     '''
                 }
             }
@@ -113,70 +120,51 @@ pipeline {
                         docker logs tests > test-runner.log 2>&1
                         docker logs selenoid > selenoid.log 2>&1
 
-                        rem Копируем результаты из test-output в target
-                        if exist "test-output" (
-                            echo Copying results from test-output...
-                            xcopy /E /I /Y test-output\\* target\\ 2>nul
-                            dir target
-                        ) else (
-                            echo No test-output directory found
-                        )
-
                         rem Создаем структуру если пусто
                         mkdir target\\surefire-reports 2>nul
                         mkdir target\\allure-results 2>nul
                         mkdir target\\allure-report 2>nul
+
+                        rem Проверяем что есть
+                        echo --- Contents of target directory ---
+                        dir target 2>nul || echo target directory is empty
+                        echo --- Contents of test-output directory ---
+                        dir test-output 2>nul || echo test-output directory is empty
                     '''
 
                     archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
 
+                    // Проверяем наличие файлов перед архивированием
                     script {
-                        bat '''
-                            echo Checking for artifacts...
-                            dir target 2>nul || echo No target directory
-                            dir target\\surefire-reports 2>nul || echo No surefire-reports
-                            dir target\\allure-results 2>nul || echo No allure-results
-                        '''
-
-                        if (fileExists('target')) {
-                            def files = findFiles(glob: 'target/**/*')
-                            if (files.length > 0) {
-                                archiveArtifacts artifacts: 'target/**/*'
-                            } else {
-                                echo 'No files found in target directory'
-                            }
+                        def hasTargetFiles = bat(script: 'if exist "target\\*" (exit 0) else (exit 1)', returnStatus: true) == 0
+                        if (hasTargetFiles) {
+                            archiveArtifacts artifacts: 'target/**/*'
+                        } else {
+                            echo 'No files found in target directory to archive'
                         }
                     }
                 }
             }
         }
 
-        stage('Generate Allure UI Report') {
+        stage('Generate Allure Report') {
             steps {
                 script {
+                    // Проверяем наличие результатов Allure
                     bat '''
                         if exist "target\\allure-results" (
-                            echo Allure results found, generating report via Jenkins plugin
+                            echo Found allure-results, generating report...
                             dir target\\allure-results
                         ) else (
-                            echo No Allure results found in target/allure-results
+                            echo No allure-results found
                         )
                     '''
 
-                    script {
-                        if (fileExists('target/allure-results')) {
-                            allure([
-                                results: [[path: 'target/allure-results']],
-                                report: 'target/allure-report',
-                                properties: [
-                                    'allure.issues.tracker.pattern': '{}',
-                                    'allure.tests.management.pattern': '{}'
-                                ]
-                            ])
-                        } else {
-                            echo 'No allure results to generate report'
-                        }
-                    }
+                    // Используем Jenkins Allure plugin
+                    allure([
+                        results: [[path: 'target/allure-results']],
+                        report: 'target/allure-report'
+                    ])
                 }
             }
         }
@@ -188,8 +176,7 @@ pipeline {
                         echo Stopping Docker containers...
                         docker stop tests 2>nul
                         docker stop selenoid 2>nul
-                        docker stop allure-generator 2>nul
-                        docker stop report-copier 2>nul
+                        docker stop report-generator 2>nul
                         docker rm selenoid 2>nul
                     '''
                 }
@@ -199,22 +186,22 @@ pipeline {
 
     post {
         always {
-            script {
-                def junitFiles = findFiles(glob: 'target/surefire-reports/*.xml')
-                if (junitFiles.length > 0) {
-                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
-                    echo "Found ${junitFiles.length} JUnit report files"
-                } else {
-                    echo 'No JUnit report files found'
-                    // Создаем заглушку, чтобы Jenkins не ругался
-                    bat '''
-                        echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" > target/surefire-reports/TEST-dummy.xml
-                        echo "<testsuite name=\"dummy\" tests=\"0\" failures=\"0\" errors=\"0\" skipped=\"0\" time=\"0\">" >> target/surefire-reports/TEST-dummy.xml
-                        echo "</testsuite>" >> target/surefire-reports/TEST-dummy.xml
-                    '''
-                    junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
-                }
-            }
+            // Проверяем наличие XML отчетов для JUnit
+            bat '''
+                echo Checking for JUnit reports...
+                if exist "target\\surefire-reports\\*.xml" (
+                    echo Found JUnit XML reports
+                ) else (
+                    echo No JUnit XML reports found
+                    rem Создаем минимальный XML чтобы Jenkins не ругался
+                    mkdir target\\surefire-reports 2>nul
+                    echo ^<?xml version="1.0" encoding="UTF-8"?^> > target\\surefire-reports\\TEST-empty.xml
+                    echo ^<testsuite name="empty" tests="0" failures="0" errors="0" skipped="0" time="0"^> >> target\\surefire-reports\\TEST-empty.xml
+                    echo ^</testsuite^> >> target\\surefire-reports\\TEST-empty.xml
+                )
+            '''
+
+            junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
 
             emailext(
                 to: 'aleksandr.brynza@simbirsoft.com',

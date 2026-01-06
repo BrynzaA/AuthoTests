@@ -1,166 +1,102 @@
 package org.tests.utils;
 
-import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.edge.EdgeDriver;
-import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.ie.InternetExplorerDriver;
-import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 
 //Задача U9. Браузеры
 public class WebDriverFactory {
 
-    private static final String DEFAULT_BROWSER = "chrome";
-    private static final boolean USE_GRID = false;
-    private static final String GRID_HUB_URL = "http://localhost:4444/wd/hub";
-
-    public static WebDriver createDriver() {
-        String browserType = System.getProperty("browser", DEFAULT_BROWSER);
-        boolean useGrid = Boolean.parseBoolean(System.getProperty("useGrid", String.valueOf(USE_GRID)));
-        String gridUrl = System.getProperty("gridUrl", GRID_HUB_URL);
-
-        return createDriver(browserType, useGrid, gridUrl);
-    }
-
-    public static WebDriver createDriver(String browserType, boolean useGrid, String gridUrl) {
-        WebDriver driver;
-
-        if (useGrid) {
-            driver = createGridDriver(browserType, gridUrl);
+    public static WebDriver createDriver(String browser, String host, String port, boolean useRemote) {
+        if (useRemote) {
+            return createRemoteDriver(browser, host, port);
         } else {
-            driver = createLocalDriver(browserType);
-        }
-
-        driver.manage().window().maximize();
-        return driver;
-    }
-
-    private static WebDriver createLocalDriver(String browserType) {
-        switch (browserType.toLowerCase()) {
-            case "chrome":
-                return createChromeDriver();
-            case "firefox":
-                return createFirefoxDriver();
-            case "edge":
-                return createEdgeDriver();
-            case "ie":
-            case "internetexplorer":
-                return createInternetExplorerDriver();
-            default:
-                throw new IllegalArgumentException("Неподдерживаемый браузер: " + browserType);
+            return createLocalDriver(browser);
         }
     }
 
-    private static WebDriver createGridDriver(String browserType, String gridUrl) {
+    private static WebDriver createRemoteDriver(String browser, String host, String port) {
         try {
+            String remoteUrl = "http://" + host + ":" + port + "/wd/hub";
             DesiredCapabilities capabilities = new DesiredCapabilities();
 
-            switch (browserType.toLowerCase()) {
+            System.out.println("Creating remote driver for Selenoid at: " + remoteUrl);
+            System.out.println("Browser: " + browser);
+
+            switch (browser.toLowerCase()) {
                 case "chrome":
                     capabilities.setBrowserName("chrome");
-                    capabilities.setCapability(ChromeOptions.CAPABILITY, getChromeOptions());
+                    ChromeOptions chromeOptions = new ChromeOptions();
+                    chromeOptions.addArguments("--start-maximized");
+                    chromeOptions.addArguments("--no-sandbox");
+                    chromeOptions.addArguments("--disable-dev-shm-usage");
+                    chromeOptions.addArguments("--disable-gpu");
+                    chromeOptions.addArguments("--remote-allow-origins=*");
+                    capabilities.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
                     break;
+
                 case "firefox":
                     capabilities.setBrowserName("firefox");
-                    capabilities.setCapability(FirefoxOptions.FIREFOX_OPTIONS, getFirefoxOptions());
+                    FirefoxOptions firefoxOptions = new FirefoxOptions();
+                    firefoxOptions.addArguments("--start-maximized");
+                    capabilities.setCapability(FirefoxOptions.FIREFOX_OPTIONS, firefoxOptions);
                     break;
-                case "edge":
-                    capabilities.setBrowserName("MicrosoftEdge");
-                    capabilities.setCapability(EdgeOptions.CAPABILITY, getEdgeOptions());
-                    break;
-                case "ie":
-                case "internetexplorer":
-                    capabilities.setBrowserName("internet explorer");
-                    capabilities.setCapability(InternetExplorerOptions.IE_OPTIONS, getInternetExplorerOptions());
-                    break;
+
                 default:
-                    throw new IllegalArgumentException("Неподдерживаемый браузер для Grid: " + browserType);
+                    throw new IllegalArgumentException("Неподдерживаемый браузер для Selenoid: " + browser);
             }
 
-            return new RemoteWebDriver(new URL(gridUrl), capabilities);
+            capabilities.setCapability("enableVNC", true);
+            capabilities.setCapability("enableVideo", false);
+            capabilities.setCapability("enableLog", true);
+            capabilities.setCapability("timeZone", "Europe/Moscow");
+            capabilities.setCapability("sessionTimeout", "5m");
+
+            RemoteWebDriver driver = new RemoteWebDriver(new URL(remoteUrl), capabilities);
+            driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
+
+            return driver;
 
         } catch (MalformedURLException e) {
-            throw new RuntimeException("Неверный URL Grid: " + gridUrl, e);
+            throw new RuntimeException("Неверный URL Selenoid: " + host + ":" + port, e);
         }
     }
 
-    private static WebDriver createChromeDriver() {
-        WebDriverManager.chromedriver().setup();
-        ChromeOptions options = getChromeOptions();
-        return new ChromeDriver(options);
-    }
+    private static WebDriver createLocalDriver(String browser) {
+        WebDriver driver;
 
-    private static WebDriver createFirefoxDriver() {
-        WebDriverManager.firefoxdriver().setup();
-        FirefoxOptions options = getFirefoxOptions();
-        return new FirefoxDriver(options);
-    }
+        switch (browser.toLowerCase()) {
+            case "chrome":
+                System.setProperty("webdriver.chrome.driver", "drivers/chromedriver");
+                ChromeOptions chromeOptions = new ChromeOptions();
+                chromeOptions.addArguments("--start-maximized");
+                chromeOptions.addArguments("--remote-allow-origins=*");
+                driver = new ChromeDriver(chromeOptions);
+                break;
 
-    private static WebDriver createEdgeDriver() {
-        WebDriverManager.edgedriver().setup();
-        EdgeOptions options = getEdgeOptions();
-        return new EdgeDriver(options);
-    }
+            case "firefox":
+                System.setProperty("webdriver.gecko.driver", "drivers/geckodriver");
+                FirefoxOptions firefoxOptions = new FirefoxOptions();
+                firefoxOptions.addArguments("--start-maximized");
+                driver = new FirefoxDriver(firefoxOptions);
+                break;
 
-    private static WebDriver createInternetExplorerDriver() {
-        WebDriverManager.iedriver().setup();
-        InternetExplorerOptions options = getInternetExplorerOptions();
-        return new InternetExplorerDriver(options);
-    }
+            default:
+                throw new IllegalArgumentException("Неподдерживаемый браузер: " + browser);
+        }
 
-    private static ChromeOptions getChromeOptions() {
-        ChromeOptions options = new ChromeOptions();
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
+        driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
 
-        options.addArguments("--start-maximized");
-        options.addArguments("--disable-notifications");
-        options.addArguments("--remote-allow-origins=*");
-
-        return options;
-    }
-
-    private static FirefoxOptions getFirefoxOptions() {
-        FirefoxOptions options = new FirefoxOptions();
-
-        options.addArguments("--start-maximized");
-        options.addArguments("--disable-notifications");
-
-        return options;
-    }
-
-    private static EdgeOptions getEdgeOptions() {
-        EdgeOptions options = new EdgeOptions();
-
-        options.addArguments("--start-maximized");
-        options.addArguments("--disable-notifications");
-
-        return options;
-    }
-
-    private static InternetExplorerOptions getInternetExplorerOptions() {
-        InternetExplorerOptions options = new InternetExplorerOptions();
-
-        options.introduceFlakinessByIgnoringSecurityDomains();
-        options.ignoreZoomSettings();
-        options.requireWindowFocus();
-        options.enablePersistentHovering();
-
-        options.setCapability(InternetExplorerDriver.IE_ENSURE_CLEAN_SESSION, true);
-        options.setCapability(InternetExplorerDriver.ENABLE_PERSISTENT_HOVERING, false);
-        options.setCapability(InternetExplorerDriver.REQUIRE_WINDOW_FOCUS, false);
-        options.setCapability(InternetExplorerDriver.IGNORE_ZOOM_SETTING, true);
-        options.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
-
-        options.setCapability(InternetExplorerDriver.INTRODUCE_FLAKINESS_BY_IGNORING_SECURITY_DOMAINS, true);
-
-        return options;
+        return driver;
     }
 }
