@@ -43,8 +43,10 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    bat 'docker build -t autotests-runner:latest .'
-                    bat 'docker build -t selenoid-custom:latest ./selenoid'
+                    bat '''
+                        docker build -t autotests-runner:latest .
+                        docker build -t selenoid-custom:latest ./selenoid
+                    '''
                 }
             }
         }
@@ -53,11 +55,17 @@ pipeline {
             steps {
                 script {
                     bat '''
-                        set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        echo Starting Selenoid with project name: %%COMPOSE_PROJECT_NAME%%
+                        echo Starting Selenoid...
 
-                        rem Запускаем Selenoid
-                        docker-compose -p %%COMPOSE_PROJECT_NAME%% up -d selenoid
+                        rem Запускаем Selenoid напрямую, так как docker-compose не может обработать имя проекта с дефисами
+                        docker run -d \
+                            --name selenoid-autotests-%BUILD_NUMBER% \
+                            -p 4444:4444 \
+                            -v /var/run/docker.sock:/var/run/docker.sock \
+                            -v "%cd%\\selenoid\\videos:/opt/selenoid/video" \
+                            -v "%cd%\\selenoid\\logs:/opt/selenoid/logs" \
+                            -v "%cd%\\browsers.json:/etc/selenoid/browsers.json:ro" \
+                            aerokube/selenoid:latest-release
 
                         rem Ждем запуска
                         echo Waiting for Selenoid to start...
@@ -80,13 +88,28 @@ pipeline {
             steps {
                 script {
                     bat '''
-                        set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        echo Running tests with project name: %%COMPOSE_PROJECT_NAME%%
+                        echo Running tests...
 
-                        rem Запускаем тесты
-                        docker-compose -p %%COMPOSE_PROJECT_NAME%% up tests
+                        rem Запускаем контейнер с тестами
+                        docker run --rm \
+                            --name tests-autotests-%BUILD_NUMBER% \
+                            --network host ^
+                            -v "%cd%\\test-output:/app/test-output" ^
+                            -v "%cd%\\target:/app/target" ^
+                            -e SELENOID_HOST=localhost ^
+                            -e SELENOID_PORT=4444 ^
+                            -e BROWSER=chrome ^
+                            -e TEST_OUTPUT_DIR=/app/test-output ^
+                            autotests-runner:latest ^
+                            sh -c "
+                                echo 'Starting tests...' &&
+                                mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=$${BROWSER} &&
+                                echo 'Tests completed, generating report...' &&
+                                mvn allure:report -Dallure.results.directory=$${TEST_OUTPUT_DIR}/allure-results &&
+                                cp -r target/surefire-reports $${TEST_OUTPUT_DIR}/ 2>/dev/null || true &&
+                                echo 'Results copied to output directory'
+                            "
 
-                        rem Проверяем результат
                         if errorlevel 1 (
                             echo WARNING: Tests may have failed, but collecting results...
                         )
@@ -98,13 +121,11 @@ pipeline {
                 always {
                     script {
                         bat '''
-                            set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-
                             rem Сохраняем логи
-                            docker-compose -p %%COMPOSE_PROJECT_NAME%% logs tests > test-runner.log 2>&1
-                            docker-compose -p %%COMPOSE_PROJECT_NAME%% logs selenoid > selenoid.log 2>&1
+                            docker logs tests-autotests-%BUILD_NUMBER% > test-runner.log 2>&1
+                            docker logs selenoid-autotests-%BUILD_NUMBER% > selenoid.log 2>&1
 
-                            rem Копируем результаты из test-output
+                            rem Копируем результаты
                             if exist "test-output" (
                                 echo Copying test results...
                                 xcopy /E /I /Y test-output\\* target\\ 2>nul
@@ -158,8 +179,10 @@ pipeline {
                 script {
                     bat '''
                         echo Stopping Docker containers...
-                        set COMPOSE_PROJECT_NAME=autotests-%BUILD_NUMBER%
-                        docker-compose -p %%COMPOSE_PROJECT_NAME%% down -v --remove-orphans 2>nul
+                        docker stop tests-autotests-%BUILD_NUMBER% 2>nul
+                        docker stop selenoid-autotests-%BUILD_NUMBER% 2>nul
+                        docker rm selenoid-autotests-%BUILD_NUMBER% 2>nul
+                        docker-compose down -v --remove-orphans 2>nul
                     '''
                 }
             }
