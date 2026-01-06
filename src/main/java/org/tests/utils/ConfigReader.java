@@ -24,6 +24,10 @@ public class ConfigReader {
         return properties.getProperty(key);
     }
 
+    public static String getProperty(String key, String defaultValue) {
+        return properties.getProperty(key, defaultValue);
+    }
+
     public static String getValidUsername() {
         return getProperty("valid.username");
     }
@@ -88,5 +92,13 @@ public class ConfigReader {
 
     public static String getBaseUrl() {
         return getProperty("base.url");
+    }
+
+    public static boolean isGridEnabled() {
+        return Boolean.parseBoolean(getProperty("use.grid", "false"));
+    }
+
+    public static String getRemoteUrl() {
+        return getProperty("remote.url");
     }
 }

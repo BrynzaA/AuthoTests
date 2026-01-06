@@ -1,0 +1,116 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven-3.9'
+        jdk 'JDK-17'
+    }
+
+    environment {
+        USE_GRID = 'true'
+        REMOTE_URL = 'http://localhost:4444/wd/hub'
+        BROWSER = 'chrome'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'CI4',
+                    url: 'https://github.com/BrynzaA/AuthoTests.git',
+                    credentialsId: 'github-credentials'
+            }
+        }
+
+        stage('Start Selenoid') {
+            steps {
+                sh '''
+                    # Создаем browsers.json
+                    cat > browsers.json << 'EOF'
+                    {
+                        "chrome": {
+                            "default": "latest",
+                            "versions": {
+                                "latest": {
+                                    "image": "selenoid/chrome:latest",
+                                    "port": "4444",
+                                    "path": "/"
+                                }
+                            }
+                        }
+                    }
+                    EOF
+
+                    # Запускаем Selenoid
+                    docker-compose up -d selenoid
+                    sleep 10
+
+                    # Проверяем, что Selenoid запущен
+                    curl -f http://localhost:4444/status || exit 1
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh '''
+                    # Запускаем тесты в контейнере
+                    docker-compose run --rm tests
+                '''
+            }
+            post {
+                always {
+                    sh 'docker-compose logs tests > test-runner.log'
+                    archiveArtifacts artifacts: 'test-runner.log', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Collect Results') {
+            steps {
+                sh '''
+                    # Копируем результаты из контейнера
+                    docker cp test-runner:/app/target/allure-results . || true
+                    docker cp test-runner:/app/target/surefire-reports . || true
+                    docker cp test-runner:/app/screenshots . || true
+
+                    # Останавливаем контейнеры
+                    docker-compose down -v
+                '''
+            }
+            post {
+                always {
+                    // Сохраняем артефакты
+                    archiveArtifacts artifacts: 'allure-results/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'surefire-reports/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'screenshots/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'target/**/*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        stage('Generate Allure Report') {
+            steps {
+                script {
+                    allure([
+                        includeProperties: false,
+                        jdk: '',
+                        properties: [],
+                        reportBuildPolicy: 'ALWAYS',
+                        results: [[path: 'allure-results']]
+                    ])
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                docker-compose down -v 2>/dev/null || true
+                docker rm -f test-runner 2>/dev/null || true
+                docker rm -f selenoid 2>/dev/null || true
+                docker rm -f selenoid-ui 2>/dev/null || true
+            '''
+        }
+    }
+}
