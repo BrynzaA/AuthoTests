@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        COMPOSE_PROJECT_NAME = "autotests-${env.BUILD_NUMBER}"
-    }
-
     options {
         timeout(time: 30, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
@@ -29,8 +25,6 @@ pipeline {
                 script {
                     bat '''
                         mkdir test-output 2>nul
-                        mkdir allure-results 2>nul
-                        mkdir allure-report 2>nul
                         mkdir target 2>nul
                         rmdir /s /q selenoid\\videos 2>nul
                         mkdir selenoid\\videos 2>nul
@@ -40,13 +34,10 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    bat '''
-                        docker build -t autotests-runner:latest .
-                        docker build -t selenoid-custom:latest ./selenoid
-                    '''
+                    bat 'docker build -t autotests-runner:latest .'
                 }
             }
         }
@@ -57,21 +48,11 @@ pipeline {
                     bat '''
                         echo Starting Selenoid...
 
-                        rem Запускаем Selenoid напрямую, так как docker-compose не может обработать имя проекта с дефисами
-                        docker run -d \
-                            --name selenoid-autotests-%BUILD_NUMBER% \
-                            -p 4444:4444 \
-                            -v /var/run/docker.sock:/var/run/docker.sock \
-                            -v "%cd%\\selenoid\\videos:/opt/selenoid/video" \
-                            -v "%cd%\\selenoid\\logs:/opt/selenoid/logs" \
-                            -v "%cd%\\browsers.json:/etc/selenoid/browsers.json:ro" \
-                            aerokube/selenoid:latest-release
+                        docker run -d --name selenoid -p 4444:4444 -v /var/run/docker.sock:/var/run/docker.sock -v "%cd%\\selenoid\\videos:/opt/selenoid/video" -v "%cd%\\selenoid\\logs:/opt/selenoid/logs" -v "%cd%\\browsers.json:/etc/selenoid/browsers.json:ro" aerokube/selenoid:latest-release
 
-                        rem Ждем запуска
                         echo Waiting for Selenoid to start...
-                        ping -n 15 127.0.0.1 >nul
+                        ping -n 10 127.0.0.1 >nul
 
-                        rem Проверяем статус
                         curl -f http://localhost:4444/status
                         if errorlevel 1 (
                             echo ERROR: Selenoid failed to start
@@ -90,25 +71,7 @@ pipeline {
                     bat '''
                         echo Running tests...
 
-                        rem Запускаем контейнер с тестами
-                        docker run --rm \
-                            --name tests-autotests-%BUILD_NUMBER% \
-                            --network host ^
-                            -v "%cd%\\test-output:/app/test-output" ^
-                            -v "%cd%\\target:/app/target" ^
-                            -e SELENOID_HOST=localhost ^
-                            -e SELENOID_PORT=4444 ^
-                            -e BROWSER=chrome ^
-                            -e TEST_OUTPUT_DIR=/app/test-output ^
-                            autotests-runner:latest ^
-                            sh -c "
-                                echo 'Starting tests...' &&
-                                mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=$${BROWSER} &&
-                                echo 'Tests completed, generating report...' &&
-                                mvn allure:report -Dallure.results.directory=$${TEST_OUTPUT_DIR}/allure-results &&
-                                cp -r target/surefire-reports $${TEST_OUTPUT_DIR}/ 2>/dev/null || true &&
-                                echo 'Results copied to output directory'
-                            "
+                        docker run --rm --name tests --network host -v "%cd%\\test-output:/app/test-output" -v "%cd%\\target:/app/target" -e SELENOID_HOST=localhost -e SELENOID_PORT=4444 -e BROWSER=chrome -e TEST_OUTPUT_DIR=/app/test-output autotests-runner:latest sh -c "echo 'Starting tests...' && mvn clean test -Dselenium.host=localhost -Dselenium.port=4444 -Dbrowser=$${BROWSER} && echo 'Tests completed, generating report...' && mvn allure:report -Dallure.results.directory=$${TEST_OUTPUT_DIR}/allure-results && cp -r target/surefire-reports $${TEST_OUTPUT_DIR}/ 2>/dev/null || true && echo 'Results copied to output directory'"
 
                         if errorlevel 1 (
                             echo WARNING: Tests may have failed, but collecting results...
@@ -116,29 +79,28 @@ pipeline {
                     '''
                 }
             }
+        }
 
-            post {
-                always {
-                    script {
-                        bat '''
-                            rem Сохраняем логи
-                            docker logs tests-autotests-%BUILD_NUMBER% > test-runner.log 2>&1
-                            docker logs selenoid-autotests-%BUILD_NUMBER% > selenoid.log 2>&1
+        stage('Collect Results') {
+            steps {
+                script {
+                    bat '''
+                        echo Collecting test results...
 
-                            rem Копируем результаты
-                            if exist "test-output" (
-                                echo Copying test results...
-                                xcopy /E /I /Y test-output\\* target\\ 2>nul
-                            )
+                        docker logs tests > test-runner.log 2>&1
+                        docker logs selenoid > selenoid.log 2>&1
 
-                            rem Создаем структуру каталогов если нет результатов
-                            mkdir target\\surefire-reports 2>nul
-                            mkdir target\\allure-results 2>nul
-                        '''
+                        if exist "test-output" (
+                            echo Copying test results...
+                            xcopy /E /I /Y test-output\\* target\\ 2>nul
+                        )
 
-                        archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
-                        archiveArtifacts artifacts: 'target/**/*'
-                    }
+                        mkdir target\\surefire-reports 2>nul
+                        mkdir target\\allure-results 2>nul
+                    '''
+
+                    archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
+                    archiveArtifacts artifacts: 'target/**/*'
                 }
             }
         }
@@ -147,14 +109,8 @@ pipeline {
             steps {
                 script {
                     bat '''
-                        rem Генерируем Allure отчет если есть результаты
                         if exist "target\\allure-results" (
                             echo Generating Allure report...
-                            if exist "allure.bat" (
-                                allure generate target\\allure-results -o allure-report-generated
-                            ) else (
-                                echo Allure not found, using Jenkins plugin
-                            )
                         ) else (
                             echo No Allure results found
                         )
@@ -168,8 +124,6 @@ pipeline {
                             ])
                         }
                     }
-
-                    archiveArtifacts artifacts: 'allure-report-generated/**/*'
                 }
             }
         }
@@ -179,10 +133,9 @@ pipeline {
                 script {
                     bat '''
                         echo Stopping Docker containers...
-                        docker stop tests-autotests-%BUILD_NUMBER% 2>nul
-                        docker stop selenoid-autotests-%BUILD_NUMBER% 2>nul
-                        docker rm selenoid-autotests-%BUILD_NUMBER% 2>nul
-                        docker-compose down -v --remove-orphans 2>nul
+                        docker stop tests 2>nul
+                        docker stop selenoid 2>nul
+                        docker rm selenoid 2>nul
                     '''
                 }
             }
