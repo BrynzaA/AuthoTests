@@ -54,12 +54,6 @@ public class WebDriverFactory {
                     throw new IllegalArgumentException("Неподдерживаемый браузер для Selenoid: " + browser);
             }
 
-            capabilities.setCapability("enableVNC", true);
-            capabilities.setCapability("enableVideo", false);
-            capabilities.setCapability("enableLog", true);
-            capabilities.setCapability("timeZone", "Europe/Moscow");
-            capabilities.setCapability("sessionTimeout", "5m");
-
             RemoteWebDriver driver = new RemoteWebDriver(new URL(remoteUrl), capabilities);
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));
             driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
