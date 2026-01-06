@@ -1,0 +1,17 @@
+# selenoid/config/selenoid.yml
+version: "1.0"
+lastUpdate: "2024-12-23T10:00:00Z"
+port: "4444"
+statsdAddr: ""
+logOutputDir: "/opt/selenoid/logs"
+videoOutputDir: "/opt/selenoid/video"
+sessionMaxTimeout: "10m"
+sessionIdleTimeout: "1m"
+sessionDeleteTimeout: "5m"
+enableLog: true
+enableVideo: true
+videoScreenWidth: 1920
+videoScreenHeight: 1080
+videoFrameRate: 24
+videoCodec: "mpeg4"
+timeZone: "Europe/Moscow"
