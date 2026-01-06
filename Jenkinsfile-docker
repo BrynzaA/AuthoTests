@@ -48,6 +48,23 @@ pipeline {
             }
         }
 
+        stage('Prepare Browser Images') {
+            steps {
+                script {
+                    bat '''
+                        echo Загружаем необходимые Docker-образы для Selenoid...
+
+                        rem Загружаем образ Chrome (главный, который у тебя в browsers.json)
+                        docker pull selenoid/chrome:latest
+
+                        rem Для надежности можно подождать
+                        echo Проверяем, что образ загрузился...
+                        docker images selenoid/chrome
+                    '''
+                }
+            }
+        }
+
         stage('Start Selenoid') {
             steps {
                 script {
