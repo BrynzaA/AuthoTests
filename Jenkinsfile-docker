@@ -70,7 +70,7 @@ pipeline {
                             docker-compose logs selenoid > selenoid.log
                         '''
 
-                        archiveArtifacts artifacts: 'test-runner.log, selenoid.log', fingerprint: true
+                        archiveArtifacts artifacts: 'test-runner.log, selenoid.log'
                     }
                 }
             }
@@ -96,9 +96,9 @@ pipeline {
                         fi
                     '''
 
-                    archiveArtifacts artifacts: 'target/**/*', fingerprint: true
-                    archiveArtifacts artifacts: 'selenoid/video/**/*', allowEmptyArchive: true
-                    archiveArtifacts artifacts: 'selenoid/logs/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'target/**/*'
+                    archiveArtifacts artifacts: 'selenoid/video/**/*'
+                    archiveArtifacts artifacts: 'selenoid/logs/**/*'
                 }
             }
         }
@@ -121,7 +121,7 @@ pipeline {
                         report: 'allure-report-jenkins'
                     ])
 
-                    archiveArtifacts artifacts: 'allure-report-generated/**/*', fingerprint: true
+                    archiveArtifacts artifacts: 'allure-report-generated/**/*'
                 }
             }
         }
@@ -142,10 +142,11 @@ pipeline {
 
     post {
         always {
-            junit testResults: 'target/surefire-reports/*.xml', allowEmptyArchive: true
+            junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
+
 
             emailext(
-                to: 'ваш.email@gmail.com, ментор@example.com',
+                to: 'aleksandr.brynza@simbirsoft.com',
                 subject: "${currentBuild.currentResult}: Docker Tests - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
                     <h2>${currentBuild.currentResult}: Тесты в Docker контейнерах</h2>
