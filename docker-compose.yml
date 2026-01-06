@@ -7,27 +7,29 @@ networks:
 services:
   selenoid:
     build: ./selenoid
-    container_name: selenoid-${COMPOSE_PROJECT_NAME}
+    container_name: selenoid
     ports:
       - "4444:4444"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./selenoid/videos:/opt/selenoid/video"
       - "./selenoid/logs:/opt/selenoid/logs"
+      - "./browsers.json:/etc/selenoid/browsers.json:ro"
     networks:
       - test-network
     restart: unless-stopped
 
   tests:
     build: .
-    container_name: tests-${COMPOSE_PROJECT_NAME}
+    container_name: tests
     depends_on:
       - selenoid
     volumes:
       - maven-repo:/root/.m2
       - ./test-output:/app/test-output
+      - ./target:/app/target
     environment:
-      - SELENOID_HOST=selenoid-${COMPOSE_PROJECT_NAME}
+      - SELENOID_HOST=selenoid
       - SELENOID_PORT=4444
       - BROWSER=chrome
       - MAVEN_OPTS=-Dmaven.repo.local=/root/.m2/repository
@@ -37,7 +39,7 @@ services:
     command: >
       sh -c "
         echo 'Starting tests...' &&
-        mvn clean test -Dselenium.host=selenoid-${COMPOSE_PROJECT_NAME} -Dselenium.port=4444 -Dbrowser=$${BROWSER} &&
+        mvn clean test -Dselenium.host=selenoid -Dselenium.port=4444 -Dbrowser=$${BROWSER} &&
         echo 'Tests completed, generating report...' &&
         mvn allure:report -Dallure.results.directory=$${TEST_OUTPUT_DIR}/allure-results &&
         cp -r target/surefire-reports $${TEST_OUTPUT_DIR}/ 2>/dev/null || true &&
